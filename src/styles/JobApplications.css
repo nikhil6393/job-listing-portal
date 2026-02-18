@@ -1,0 +1,260 @@
+.applications-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.applications-header {
+  margin-bottom: 30px;
+}
+
+.applications-header h2 {
+  font-size: 28px;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.applications-header p {
+  color: #666;
+  font-size: 14px;
+}
+
+/* Filter Tabs */
+.app-filter-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 15px;
+}
+
+.app-tab {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.app-tab:hover {
+  color: #0984E3;
+  border-bottom-color: #0984E3;
+}
+
+.app-tab.active {
+  color: #0984E3;
+  border-bottom-color: #0984E3;
+}
+
+/* Applications List */
+.applications-list {
+  display: grid;
+  gap: 15px;
+}
+
+.application-card {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.application-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #0984E3;
+}
+
+.application-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  gap: 15px;
+}
+
+.application-job h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+  font-weight: 600;
+}
+
+.application-company {
+  margin: 5px 0 0 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Application Details */
+.application-details {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.detail-item svg {
+  color: #0984E3;
+  flex-shrink: 0;
+}
+
+/* Cover Letter */
+.application-cover-letter {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 6px;
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.application-cover-letter svg {
+  color: #0984E3;
+  flex-shrink: 0;
+}
+
+.application-cover-letter p {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.4;
+}
+
+/* Status Management */
+.application-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.status-select {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  background: white;
+}
+
+.status-select:focus {
+  outline: none;
+  border-color: #0984E3;
+  box-shadow: 0 0 0 3px rgba(9, 132, 227, 0.1);
+}
+
+/* No Applications */
+.no-applications {
+  text-align: center;
+  padding: 60px 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.no-applications svg {
+  color: #bbb;
+  margin-bottom: 15px;
+}
+
+.no-applications p {
+  margin: 10px 0 5px 0;
+  font-size: 16px;
+  color: #666;
+}
+
+.no-applications small {
+  display: block;
+  color: #999;
+  font-size: 13px;
+}
+
+/* Loading */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f0f0f0;
+  border-top-color: #0984E3;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.alert {
+  padding: 12px 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.alert-error {
+  background: #fff5f5;
+  color: #c3423f;
+  border: 1px solid #f5b1a0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .applications-container {
+    padding: 15px;
+  }
+
+  .application-header {
+    flex-direction: column;
+  }
+
+  .application-details {
+    gap: 12px;
+  }
+
+  .app-filter-tabs {
+    gap: 8px;
+  }
+
+  .app-tab {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}

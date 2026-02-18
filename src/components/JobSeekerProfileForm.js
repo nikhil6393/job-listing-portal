@@ -46,11 +46,40 @@ const JobSeekerProfileForm = ({ userId, onSave }) => {
     const loadProfile = async () => {
       try {
         const profile = await getJobSeekerProfile(userId);
-        setFormData(profile);
-        const status = getProfileCompletionStatus(profile, 'jobseeker');
-        setCompletion(status.percentage);
+        // Only update formData if profile exists
+        if (profile) {
+          // Ensure all fields have default values to prevent controlled/uncontrolled warning
+          setFormData({
+            firstName: profile.firstName || '',
+            lastName: profile.lastName || '',
+            email: profile.email || '',
+            phoneNumber: profile.phoneNumber || '',
+            dateOfBirth: profile.dateOfBirth || '',
+            gender: profile.gender || '',
+            currentCity: profile.currentCity || '',
+            state: profile.state || '',
+            zipCode: profile.zipCode || '',
+            country: profile.country || '',
+            address: profile.address || '',
+            headline: profile.headline || '',
+            professionalSummary: profile.professionalSummary || '',
+            experience: profile.experience || 0,
+            skills: profile.skills || [],
+            preferredJobTypes: profile.preferredJobTypes || [],
+            preferredLocations: profile.preferredLocations || [],
+            salaryExpectation: profile.salaryExpectation || '',
+            willingToRelocate: profile.willingToRelocate || false,
+            openToWork: profile.openToWork !== undefined ? profile.openToWork : true,
+          });
+          const status = getProfileCompletionStatus(profile, 'jobseeker');
+          setCompletion(status.percentage);
+        } else {
+          console.log('New profile - starting fresh');
+          // Profile doesn't exist yet, keep initial formData
+        }
       } catch (error) {
-        console.log('New profile - starting fresh');
+        console.log('Error loading profile:', error.message);
+        // Keep initial formData on error
       }
     };
 
@@ -166,6 +195,7 @@ const JobSeekerProfileForm = ({ userId, onSave }) => {
                 type="text"
                 id="firstName"
                 name="firstName"
+                autoComplete="given-name"
                 value={formData.firstName}
                 onChange={handleInputChange}
                 placeholder="John"
@@ -179,6 +209,7 @@ const JobSeekerProfileForm = ({ userId, onSave }) => {
                 type="text"
                 id="lastName"
                 name="lastName"
+                autoComplete="family-name"
                 value={formData.lastName}
                 onChange={handleInputChange}
                 placeholder="Doe"
@@ -194,6 +225,7 @@ const JobSeekerProfileForm = ({ userId, onSave }) => {
                 type="email"
                 id="email"
                 name="email"
+                autoComplete="email"
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="john@example.com"
@@ -207,6 +239,7 @@ const JobSeekerProfileForm = ({ userId, onSave }) => {
                 type="tel"
                 id="phoneNumber"
                 name="phoneNumber"
+                autoComplete="tel"
                 value={formData.phoneNumber}
                 onChange={handleInputChange}
                 placeholder="+1-555-0123"
@@ -255,6 +288,7 @@ const JobSeekerProfileForm = ({ userId, onSave }) => {
               type="text"
               id="address"
               name="address"
+              autoComplete="street-address"
               value={formData.address}
               onChange={handleInputChange}
               placeholder="123 Main Street"
@@ -268,6 +302,7 @@ const JobSeekerProfileForm = ({ userId, onSave }) => {
                 type="text"
                 id="currentCity"
                 name="currentCity"
+                autoComplete="address-level2"
                 value={formData.currentCity}
                 onChange={handleInputChange}
                 placeholder="San Francisco"
@@ -281,6 +316,7 @@ const JobSeekerProfileForm = ({ userId, onSave }) => {
                 type="text"
                 id="state"
                 name="state"
+                autoComplete="address-level1"
                 value={formData.state}
                 onChange={handleInputChange}
                 placeholder="California"
@@ -295,6 +331,7 @@ const JobSeekerProfileForm = ({ userId, onSave }) => {
                 type="text"
                 id="zipCode"
                 name="zipCode"
+                autoComplete="postal-code"
                 value={formData.zipCode}
                 onChange={handleInputChange}
                 placeholder="94102"

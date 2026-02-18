@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import CareerHubLogo from '../components/CareerHubLogo';
 import '../styles/Home.css';
 
 function Home() {
@@ -8,7 +9,9 @@ function Home() {
       {/* Navigation Bar */}
       <nav className="navbar">
         <div className="nav-container">
-          <h2 className="logo">JobPortal</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <CareerHubLogo size={40} variant="full" />
+          </div>
           <div className="nav-buttons">
             <Link to="/login" className="nav-btn login-btn">Login</Link>
             <Link to="/register" className="nav-btn register-btn">Register</Link>
@@ -60,7 +63,7 @@ function Home() {
 
       {/* Footer */}
       <footer className="footer">
-        <p>&copy; 2026 Job Listing Portal. All rights reserved.</p>
+        <p>&copy; 2026 CareerHub. All rights reserved.</p>
       </footer>
     </div>
   );

@@ -1,6 +1,42 @@
-import { doc, setDoc, getDoc, updateDoc, deleteDoc, query, getDocs, collection } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from './firebaseConfig';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+// Axios instance for profile API
+const api = axios.create({
+  baseURL: API_URL,
+  headers: { 'Content-Type': 'application/json' },
+  // Don't treat 404 as an error - we'll handle it gracefully
+  validateStatus: function (status) {
+    // Return true for all status codes < 500 (including 404)
+    // This prevents axios from throwing errors for 404s
+    return status < 500;
+  }
+});
+
+// Attach token if present
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Handle 404 responses gracefully
+api.interceptors.response.use(
+  (response) => {
+    // If it's a 404 on a profile GET endpoint, mark it as expected
+    if (response.status === 404 && 
+        response.config?.url?.includes('/profiles/') &&
+        response.config?.method === 'get') {
+      response.isExpected404 = true;
+    }
+    return response;
+  },
+  (error) => {
+    // This shouldn't be called for 404s due to validateStatus, but handle just in case
+    return Promise.reject(error);
+  }
+);
 
 /**
  * ==================== JOB SEEKER PROFILE FUNCTIONS ====================
@@ -14,53 +50,10 @@ import { db, storage } from './firebaseConfig';
  */
 export const createJobSeekerProfile = async (userId, profileData) => {
   try {
-    const jobSeekerRef = doc(db, 'jobSeekers', userId);
-    
-    const profile = {
-      uid: userId,
-      // Personal Information
-      firstName: profileData.firstName || '',
-      lastName: profileData.lastName || '',
-      email: profileData.email || '',
-      phoneNumber: profileData.phoneNumber || '',
-      dateOfBirth: profileData.dateOfBirth || null,
-      gender: profileData.gender || '',
-      
-      // Contact Details
-      currentCity: profileData.currentCity || '',
-      state: profileData.state || '',
-      zipCode: profileData.zipCode || '',
-      country: profileData.country || '',
-      address: profileData.address || '',
-      
-      // Professional Information
-      headline: profileData.headline || '', // e.g., "Full Stack Developer"
-      professionalSummary: profileData.professionalSummary || '',
-      experience: profileData.experience || 0, // Years of experience
-      skills: profileData.skills || [], // Array of skills
-      
-      // Resume
-      resumeUrl: profileData.resumeUrl || '',
-      resumeFileName: profileData.resumeFileName || '',
-      
-      // Additional Info
-      preferredJobTypes: profileData.preferredJobTypes || [], // ['Full-time', 'Part-time', etc.]
-      preferredLocations: profileData.preferredLocations || [],
-      salaryExpectation: profileData.salaryExpectation || null,
-      willingToRelocate: profileData.willingToRelocate || false,
-      openToWork: profileData.openToWork || true,
-      
-      // Metadata
-      createdAt: profileData.createdAt || new Date(),
-      updatedAt: new Date(),
-      profileCompleted: profileData.profileCompleted || false,
-      profilePictureUrl: profileData.profilePictureUrl || '',
-    };
-
-    await setDoc(jobSeekerRef, profile, { merge: true });
-    return profile;
+    const { data } = await api.post(`/profiles/jobseeker/${userId}`, profileData);
+    return data;
   } catch (error) {
-    throw new Error(`Error creating job seeker profile: ${error.message}`);
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -71,16 +64,25 @@ export const createJobSeekerProfile = async (userId, profileData) => {
  */
 export const getJobSeekerProfile = async (userId) => {
   try {
-    const jobSeekerRef = doc(db, 'jobSeekers', userId);
-    const docSnap = await getDoc(jobSeekerRef);
-
-    if (docSnap.exists()) {
-      return docSnap.data();
-    } else {
-      throw new Error('Job seeker profile not found');
+    // Guard against undefined userId
+    if (!userId) {
+      console.warn('getJobSeekerProfile: userId is undefined');
+      return null;
     }
+    
+    const response = await api.get(`/profiles/jobseeker/${userId}`);
+    // Handle 404 gracefully - profile doesn't exist yet
+    if (response.status === 404 || response.isExpected404 || !response.data) {
+      return null;
+    }
+    return response.data;
   } catch (error) {
-    throw new Error(`Error fetching job seeker profile: ${error.message}`);
+    // Handle 404 gracefully - profile doesn't exist yet
+    if (error.response?.status === 404 || error.isExpected404) {
+      return null;
+    }
+    // Only throw for real errors
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -92,20 +94,10 @@ export const getJobSeekerProfile = async (userId) => {
  */
 export const updateJobSeekerProfile = async (userId, updateData) => {
   try {
-    const jobSeekerRef = doc(db, 'jobSeekers', userId);
-    
-    const dataToUpdate = {
-      ...updateData,
-      updatedAt: new Date(),
-    };
-
-    await updateDoc(jobSeekerRef, dataToUpdate);
-    
-    // Return updated profile
-    const updatedDoc = await getDoc(jobSeekerRef);
-    return updatedDoc.data();
+    const { data } = await api.put(`/profiles/jobseeker/${userId}`, updateData);
+    return data;
   } catch (error) {
-    throw new Error(`Error updating job seeker profile: ${error.message}`);
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -116,16 +108,9 @@ export const updateJobSeekerProfile = async (userId, updateData) => {
  */
 export const deleteJobSeekerProfile = async (userId) => {
   try {
-    // Delete resume file if exists
-    const profile = await getJobSeekerProfile(userId);
-    if (profile.resumeFileName) {
-      await deleteResume(userId, profile.resumeFileName);
-    }
-
-    const jobSeekerRef = doc(db, 'jobSeekers', userId);
-    await deleteDoc(jobSeekerRef);
+    await api.delete(`/profiles/jobseeker/${userId}`);
   } catch (error) {
-    throw new Error(`Error deleting job seeker profile: ${error.message}`);
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -141,52 +126,10 @@ export const deleteJobSeekerProfile = async (userId) => {
  */
 export const createEmployerProfile = async (userId, profileData) => {
   try {
-    const employerRef = doc(db, 'employers', userId);
-    
-    const profile = {
-      uid: userId,
-      // Company Information
-      companyName: profileData.companyName || '',
-      companyType: profileData.companyType || '', // e.g., 'IT', 'Healthcare', etc.
-      industry: profileData.industry || '',
-      companySize: profileData.companySize || '', // 'Startup', '10-50', '50-200', etc.
-      foundedYear: profileData.foundedYear || null,
-      website: profileData.website || '',
-      companyDescription: profileData.companyDescription || '',
-      companyLogo: profileData.companyLogo || '',
-      
-      // Contact Details
-      contactPersonName: profileData.contactPersonName || '',
-      email: profileData.email || '',
-      phoneNumber: profileData.phoneNumber || '',
-      alternatePhone: profileData.alternatePhone || '',
-      
-      // Address
-      officeAddress: profileData.officeAddress || '',
-      city: profileData.city || '',
-      state: profileData.state || '',
-      zipCode: profileData.zipCode || '',
-      country: profileData.country || '',
-      
-      // Additional Info
-      registrationNumber: profileData.registrationNumber || '', // Tax ID, CRN, etc.
-      taxId: profileData.taxId || '',
-      socialMediaLinks: profileData.socialMediaLinks || {}, // LinkedIn, Twitter, etc.
-      employeesOnPlatform: profileData.employeesOnPlatform || 0,
-      jobsPosted: profileData.jobsPosted || 0,
-      
-      // Metadata
-      createdAt: profileData.createdAt || new Date(),
-      updatedAt: new Date(),
-      profileCompleted: profileData.profileCompleted || false,
-      verified: profileData.verified || false,
-      verificationDate: profileData.verificationDate || null,
-    };
-
-    await setDoc(employerRef, profile, { merge: true });
-    return profile;
+    const { data } = await api.post(`/profiles/employer/${userId}`, profileData);
+    return data;
   } catch (error) {
-    throw new Error(`Error creating employer profile: ${error.message}`);
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -197,16 +140,25 @@ export const createEmployerProfile = async (userId, profileData) => {
  */
 export const getEmployerProfile = async (userId) => {
   try {
-    const employerRef = doc(db, 'employers', userId);
-    const docSnap = await getDoc(employerRef);
-
-    if (docSnap.exists()) {
-      return docSnap.data();
-    } else {
-      throw new Error('Employer profile not found');
+    // Guard against undefined userId
+    if (!userId) {
+      console.warn('getEmployerProfile: userId is undefined');
+      return null;
     }
+    
+    const response = await api.get(`/profiles/employer/${userId}`);
+    // Handle 404 gracefully - profile doesn't exist yet
+    if (response.status === 404 || response.isExpected404 || !response.data) {
+      return null;
+    }
+    return response.data;
   } catch (error) {
-    throw new Error(`Error fetching employer profile: ${error.message}`);
+    // Handle 404 gracefully - profile doesn't exist yet
+    if (error.response?.status === 404 || error.isExpected404) {
+      return null;
+    }
+    // Only throw for real errors
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -218,20 +170,10 @@ export const getEmployerProfile = async (userId) => {
  */
 export const updateEmployerProfile = async (userId, updateData) => {
   try {
-    const employerRef = doc(db, 'employers', userId);
-    
-    const dataToUpdate = {
-      ...updateData,
-      updatedAt: new Date(),
-    };
-
-    await updateDoc(employerRef, dataToUpdate);
-    
-    // Return updated profile
-    const updatedDoc = await getDoc(employerRef);
-    return updatedDoc.data();
+    const { data } = await api.put(`/profiles/employer/${userId}`, updateData);
+    return data;
   } catch (error) {
-    throw new Error(`Error updating employer profile: ${error.message}`);
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -242,10 +184,9 @@ export const updateEmployerProfile = async (userId, updateData) => {
  */
 export const deleteEmployerProfile = async (userId) => {
   try {
-    const employerRef = doc(db, 'employers', userId);
-    await deleteDoc(employerRef);
+    await api.delete(`/profiles/employer/${userId}`);
   } catch (error) {
-    throw new Error(`Error deleting employer profile: ${error.message}`);
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -261,40 +202,27 @@ export const deleteEmployerProfile = async (userId) => {
  */
 export const uploadResume = async (userId, file) => {
   try {
-    // Validate file type
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type)) {
-      throw new Error('Only PDF and Word documents are allowed');
-    }
-
-    // Validate file size (max 5MB)
+    if (!allowedTypes.includes(file.type)) throw new Error('Only PDF and Word documents are allowed');
     const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      throw new Error('File size must not exceed 5MB');
-    }
+    if (file.size > maxSize) throw new Error('File size must not exceed 5MB');
 
-    const fileName = `${userId}_${Date.now()}_${file.name}`;
-    const resumeRef = ref(storage, `resumes/${userId}/${fileName}`);
+    const formData = new FormData();
+    formData.append('file', file);
 
-    // Upload file
-    const snapshot = await uploadBytes(resumeRef, file);
-    
-    // Get download URL
-    const resumeUrl = await getDownloadURL(snapshot.ref);
-
-    // Update job seeker profile with resume URL
-    await updateJobSeekerProfile(userId, {
-      resumeUrl: resumeUrl,
-      resumeFileName: fileName,
+    const { data } = await api.post(`/profiles/jobseeker/${userId}/resume`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
 
-    return {
-      resumeUrl,
-      fileName,
-      uploadedAt: new Date(),
-    };
+    // Update profile on success
+    await updateJobSeekerProfile(userId, {
+      resumeUrl: data.resumeUrl,
+      resumeFileName: data.fileName,
+    });
+
+    return data;
   } catch (error) {
-    throw new Error(`Error uploading resume: ${error.message}`);
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -306,16 +234,10 @@ export const uploadResume = async (userId, file) => {
  */
 export const deleteResume = async (userId, fileName) => {
   try {
-    const resumeRef = ref(storage, `resumes/${userId}/${fileName}`);
-    await deleteObject(resumeRef);
-
-    // Update profile to remove resume URL
-    await updateJobSeekerProfile(userId, {
-      resumeUrl: '',
-      resumeFileName: '',
-    });
+    await api.delete(`/profiles/jobseeker/${userId}/resume/${encodeURIComponent(fileName)}`);
+    await updateJobSeekerProfile(userId, { resumeUrl: '', resumeFileName: '' });
   } catch (error) {
-    throw new Error(`Error deleting resume: ${error.message}`);
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -330,43 +252,10 @@ export const deleteResume = async (userId, fileName) => {
  */
 export const searchJobSeekers = async (filters = {}) => {
   try {
-    let q = query(collection(db, 'jobSeekers'));
-
-    // Note: Firestore has limitations with complex queries
-    // For advanced filtering, consider using Algolia or Elasticsearch
-    const querySnapshot = await getDocs(q);
-    let results = [];
-
-    querySnapshot.forEach((doc) => {
-      let profile = doc.data();
-      let matches = true;
-
-      // Filter by skills
-      if (filters.skills && filters.skills.length > 0) {
-        const hasSkill = filters.skills.some(skill =>
-          profile.skills && profile.skills.map(s => s.toLowerCase()).includes(skill.toLowerCase())
-        );
-        matches = matches && hasSkill;
-      }
-
-      // Filter by city
-      if (filters.city && profile.currentCity?.toLowerCase() !== filters.city.toLowerCase()) {
-        matches = matches && false;
-      }
-
-      // Filter by minimum experience
-      if (filters.minExp !== undefined && profile.experience < filters.minExp) {
-        matches = matches && false;
-      }
-
-      if (matches) {
-        results.push(profile);
-      }
-    });
-
-    return results;
+    const { data } = await api.get('/profiles/jobseekers', { params: filters });
+    return data;
   } catch (error) {
-    throw new Error(`Error searching job seekers: ${error.message}`);
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -377,39 +266,10 @@ export const searchJobSeekers = async (filters = {}) => {
  */
 export const searchEmployers = async (filters = {}) => {
   try {
-    let q = query(collection(db, 'employers'));
-
-    const querySnapshot = await getDocs(q);
-    let results = [];
-
-    querySnapshot.forEach((doc) => {
-      let profile = doc.data();
-      let matches = true;
-
-      // Filter by industry
-      if (filters.industry && profile.industry?.toLowerCase() !== filters.industry.toLowerCase()) {
-        matches = matches && false;
-      }
-
-      // Filter by company name (partial match)
-      if (filters.companyName) {
-        const nameMatch = profile.companyName?.toLowerCase().includes(filters.companyName.toLowerCase());
-        matches = matches && nameMatch;
-      }
-
-      // Filter by verified status
-      if (filters.verified !== undefined && profile.verified !== filters.verified) {
-        matches = matches && false;
-      }
-
-      if (matches) {
-        results.push(profile);
-      }
-    });
-
-    return results;
+    const { data } = await api.get('/profiles/employers', { params: filters });
+    return data;
   } catch (error) {
-    throw new Error(`Error searching employers: ${error.message}`);
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -421,18 +281,10 @@ export const searchEmployers = async (filters = {}) => {
  */
 export const getAllJobSeekers = async (limit = 10, lastDoc = null) => {
   try {
-    let q = query(collection(db, 'jobSeekers'));
-    
-    const querySnapshot = await getDocs(q);
-    const results = [];
-
-    querySnapshot.forEach((doc) => {
-      results.push(doc.data());
-    });
-
-    return results.slice(0, limit);
+    const { data } = await api.get('/profiles/jobseekers', { params: { limit } });
+    return data;
   } catch (error) {
-    throw new Error(`Error fetching job seekers: ${error.message}`);
+    throw new Error(error.response?.data?.error || error.message);
   }
 };
 
@@ -444,17 +296,9 @@ export const getAllJobSeekers = async (limit = 10, lastDoc = null) => {
  */
 export const getAllEmployers = async (limit = 10, lastDoc = null) => {
   try {
-    let q = query(collection(db, 'employers'));
-    
-    const querySnapshot = await getDocs(q);
-    const results = [];
-
-    querySnapshot.forEach((doc) => {
-      results.push(doc.data());
-    });
-
-    return results.slice(0, limit);
+    const { data } = await api.get('/profiles/employers', { params: { limit } });
+    return data;
   } catch (error) {
-    throw new Error(`Error fetching employers: ${error.message}`);
+    throw new Error(error.response?.data?.error || error.message);
   }
 };

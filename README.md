@@ -1,8 +1,8 @@
-# 🎯 Job Listing Portal - MongoDB Edition
+# 🚀 CareerHub - Your Gateway to Career Opportunities
 
-A **fully functional** Job Listing Portal that connects job seekers with employers using **MongoDB** and **Express.js** backend.
+A **fully functional** modern job portal that connects job seekers with employers using **MongoDB** and **Express.js** backend.
 
-> **NO Firebase!** Just pure MongoDB that your friends already know! 🚀
+> **Fast. Secure. Reliable.** Your career starts here! 💼
 
 ---
 
@@ -10,10 +10,11 @@ A **fully functional** Job Listing Portal that connects job seekers with employe
 
 ✅ **User Authentication** (Register/Login with JWT)  
 ✅ **Profile Management** (Store user details in MongoDB)  
-✅ **Dashboard** (View your registration info)  
+✅ **Dashboard** (View your opportunities & applications)  
+✅ **Job Listing** (Browse available positions)  
 ✅ **Responsive Design** (Works on all devices)  
 ✅ **Modern UI** (Advanced styling with gradients & animations)  
-✅ **MongoDB Database** (Easy to understand, familiar to developers)  
+✅ **MongoDB Database** (Reliable and scalable)  
 
 ---
 

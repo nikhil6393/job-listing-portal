@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { logoutUser, getCurrentUser } from '../services/authService';
+import { logoutUser, getCurrentUser } from '../services/mongoAuthService';
 import { getJobSeekerProfile, getEmployerProfile } from '../services/profileService';
 import { getProfileCompletionStatus } from '../services/profileHelperService';
-import { auth } from '../services/firebaseConfig';
 import JobSeekerProfileForm from '../components/JobSeekerProfileForm';
 import EmployerProfileForm from '../components/EmployerProfileForm';
+import ResumeUpload from '../components/ResumeUpload';
+import ProfilePhotoUpload from '../components/ProfilePhotoUpload';
 import '../styles/Dashboard.css';
 
 function Dashboard() {
@@ -15,6 +16,13 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileCompletion, setProfileCompletion] = useState(0);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showProfileSection, setShowProfileSection] = useState(false);
+
+  // Debug: Log when showProfileSection changes
+  useEffect(() => {
+    console.log('showProfileSection changed to:', showProfileSection);
+  }, [showProfileSection]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,7 +47,14 @@ function Dashboard() {
               setProfileCompletion(completion.percentage);
             }
           } catch (profileError) {
-            console.log('No profile found yet - user can create one');
+            // Profile doesn't exist yet - this is normal for new users
+            // Only log if it's a real error (not a 404)
+            if (profileError.response?.status !== 404 && 
+                !profileError.isExpected404 && 
+                profileError.message !== 'Profile not found') {
+              console.error('Error fetching profile:', profileError);
+            }
+            // Silently handle expected 404s - no logging needed
             setProfileCompletion(0);
           }
         }
@@ -67,6 +82,7 @@ function Dashboard() {
     const completion = getProfileCompletionStatus(savedProfile, user.userType);
     setProfileCompletion(completion.percentage);
     setIsEditingProfile(false);
+    setShowProfileSection(true); // Keep profile section open after save
     
     // Refresh user data
     const updatedUser = await getCurrentUser();
@@ -97,13 +113,127 @@ function Dashboard() {
             <span className="tagline">Your Career Starts Here</span>
           </div>
           <div className="nav-actions">
-            <button className="profile-menu-btn">
-              <span className="user-icon">👤</span>
-              <span>{displayName.split(' ')[0] || 'User'}</span>
-            </button>
-            <button onClick={handleLogout} className="logout-btn">
-              Logout
-            </button>
+            <div className="profile-menu-wrapper">
+              <div className="profile-menu-wrapper-inner">
+                <button
+                  className="profile-clickable-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Profile photo/name clicked - opening profile section');
+                    setShowProfileMenu(false);
+                    setShowProfileSection(true);
+                    setIsEditingProfile(false);
+                    setActiveTab('overview');
+                  }}
+                  type="button"
+                >
+                  <div className="profile-avatar-small">
+                    {profileData?.profilePhoto ? (
+                      <img 
+                        src={profileData.profilePhoto} 
+                        alt="Profile" 
+                        className="avatar-img-small"
+                      />
+                    ) : (
+                      displayName?.charAt(0).toUpperCase() || 'U'
+                    )}
+                  </div>
+                  <span className="profile-name-clickable">{displayName.split(' ')[0] || 'User'}</span>
+                </button>
+                <button 
+                  className="profile-dropdown-toggle"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowProfileMenu(!showProfileMenu);
+                  }}
+                  type="button"
+                >
+                  <span className="dropdown-arrow">▼</span>
+                </button>
+              </div>
+              {showProfileMenu && (
+                <div className="profile-dropdown">
+                  <div className="dropdown-header">
+                    <div className="dropdown-avatar">
+                      {profileData?.profilePhoto ? (
+                        <img 
+                          src={profileData.profilePhoto} 
+                          alt="Profile" 
+                          className="avatar-img-dropdown"
+                        />
+                      ) : (
+                        displayName?.charAt(0).toUpperCase() || 'U'
+                      )}
+                    </div>
+                    <div className="dropdown-user-info">
+                      <div className="dropdown-name">{displayName || 'User'}</div>
+                      <div className="dropdown-email">{user?.email}</div>
+                      <div className="dropdown-completion">
+                        Profile: {profileCompletion}% Complete
+                      </div>
+                    </div>
+                  </div>
+                  <div className="dropdown-divider"></div>
+                  <button 
+                    className="dropdown-item"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('View Profile clicked');
+                      setShowProfileMenu(false);
+                      setIsEditingProfile(false);
+                      setShowProfileSection(true);
+                      setActiveTab('overview');
+                    }}
+                  >
+                    <span className="dropdown-icon">👤</span>
+                    View Profile
+                  </button>
+                  <button 
+                    className="dropdown-item"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Edit Profile clicked');
+                      setShowProfileMenu(false);
+                      setIsEditingProfile(true);
+                      setShowProfileSection(true);
+                      setActiveTab('overview');
+                    }}
+                  >
+                    <span className="dropdown-icon">✏️</span>
+                    Edit Profile
+                  </button>
+                  {isJobSeeker && (
+                    <button 
+                      className="dropdown-item"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Resume Management clicked');
+                        setShowProfileMenu(false);
+                        setShowProfileSection(true);
+                        setIsEditingProfile(false);
+                        setActiveTab('resume');
+                      }}
+                    >
+                      <span className="dropdown-icon">📄</span>
+                      Resume Management
+                    </button>
+                  )}
+                  <div className="dropdown-divider"></div>
+                  <button 
+                    className="dropdown-item logout-item"
+                    onClick={handleLogout}
+                  >
+                    <span className="dropdown-icon">🚪</span>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
@@ -170,175 +300,200 @@ function Dashboard() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="tab-navigation">
-          <button 
-            className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
-          >
-            <span className="tab-icon">📊</span> Overview
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('profile'); setIsEditingProfile(false); }}
-          >
-            <span className="tab-icon">👤</span> Profile
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'activity' ? 'active' : ''}`}
-            onClick={() => setActiveTab('activity')}
-          >
-            <span className="tab-icon">🔔</span> Activity
-          </button>
-        </div>
+        {!showProfileSection && (
+          <div className="tab-navigation">
+            <button 
+              className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setActiveTab('overview');
+                setShowProfileSection(false);
+              }}
+            >
+              <span className="tab-icon">📊</span> Overview
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'jobs' ? 'active' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setActiveTab('jobs');
+                setShowProfileSection(false);
+              }}
+            >
+              <span className="tab-icon">💼</span> Jobs
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'activity' ? 'active' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setActiveTab('activity');
+                setShowProfileSection(false);
+              }}
+            >
+              <span className="tab-icon">🔔</span> Activity
+            </button>
+          </div>
+        )}
+        
+        {/* Profile Section Header (when profile is open) */}
+        {showProfileSection && (
+          <div className="profile-section-header-nav">
+            <button 
+              className="profile-section-back-btn"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Profile section back clicked');
+                setShowProfileSection(false);
+                setIsEditingProfile(false);
+                setActiveTab('overview');
+              }}
+            >
+              ← Back to Dashboard
+            </button>
+            <h2 className="profile-section-title">My Profile</h2>
+          </div>
+        )}
 
         {/* Tab Content */}
         <div className="tab-content">
-          {activeTab === 'overview' && (
-            <div className="tab-pane active">
-              <div className="welcome-section">
-                {/* Profile Summary Card */}
-                <div className="overview-summary-card">
-                  <div className="summary-header">
-                    <div className="summary-avatar">
-                      {displayName?.charAt(0).toUpperCase() || 'U'}
-                    </div>
-                    <div className="summary-info">
-                      <h2>{displayName || 'User'}</h2>
-                      <p className="summary-subtitle">
-                        {isJobSeeker 
-                          ? (profileData?.headline || 'Job Seeker') 
-                          : (profileData?.industry || 'Employer')}
-                      </p>
-                      {isJobSeeker && profileData?.currentCity && (
-                        <p className="summary-location">
-                          📍 {profileData.currentCity}{profileData.state ? `, ${profileData.state}` : ''}
-                        </p>
-                      )}
-                      {!isJobSeeker && profileData?.city && (
-                        <p className="summary-location">
-                          📍 {profileData.city}{profileData.state ? `, ${profileData.state}` : ''}
-                        </p>
-                      )}
-                    </div>
-                    <div className="summary-completion">
-                      <div className="completion-circle">
-                        <svg viewBox="0 0 36 36" className="circular-chart">
-                          <path
-                            className="circle-bg"
-                            d="M18 2.0845
-                              a 15.9155 15.9155 0 0 1 0 31.831
-                              a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                          <path
-                            className="circle"
-                            strokeDasharray={`${profileCompletion}, 100`}
-                            d="M18 2.0845
-                              a 15.9155 15.9155 0 0 1 0 31.831
-                              a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                          <text x="18" y="20.35" className="percentage">{profileCompletion}%</text>
-                        </svg>
-                      </div>
-                      <p className="completion-label">Profile Complete</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="quick-actions">
-                  <h3>Quick Actions</h3>
-                  <div className="actions-grid">
-                    {isJobSeeker ? (
-                      <>
-                        <button className="action-btn primary">
-                          <span className="action-icon">🔍</span>
-                          <span>Browse Jobs</span>
-                        </button>
-                        <button 
-                          className="action-btn secondary"
-                          onClick={() => { setActiveTab('profile'); setIsEditingProfile(true); }}
-                        >
-                          <span className="action-icon">✏️</span>
-                          <span>Edit Profile</span>
-                        </button>
-                        <button className="action-btn secondary">
-                          <span className="action-icon">⭐</span>
-                          <span>Saved Jobs</span>
-                        </button>
-                        <button className="action-btn secondary">
-                          <span className="action-icon">📊</span>
-                          <span>My Applications</span>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button className="action-btn primary">
-                          <span className="action-icon">✍️</span>
-                          <span>Post a Job</span>
-                        </button>
-                        <button 
-                          className="action-btn secondary"
-                          onClick={() => { setActiveTab('profile'); setIsEditingProfile(true); }}
-                        >
-                          <span className="action-icon">✏️</span>
-                          <span>Edit Profile</span>
-                        </button>
-                        <button className="action-btn secondary">
-                          <span className="action-icon">📋</span>
-                          <span>My Listings</span>
-                        </button>
-                        <button className="action-btn secondary">
-                          <span className="action-icon">👥</span>
-                          <span>View Candidates</span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Recent Activity Summary */}
-                <div className="overview-activity">
-                  <h3>Recent Activity</h3>
-                  <div className="activity-cards-grid">
-                    <div className="activity-mini-card">
-                      <div className="mini-card-icon">📝</div>
-                      <div className="mini-card-content">
-                        <p className="mini-card-title">Profile Updates</p>
-                        <p className="mini-card-value">0</p>
-                      </div>
-                    </div>
-                    <div className="activity-mini-card">
-                      <div className="mini-card-icon">👁️</div>
-                      <div className="mini-card-content">
-                        <p className="mini-card-title">Profile Views</p>
-                        <p className="mini-card-value">0</p>
-                      </div>
-                    </div>
-                    <div className="activity-mini-card">
-                      <div className="mini-card-icon">🔔</div>
-                      <div className="mini-card-content">
-                        <p className="mini-card-title">Notifications</p>
-                        <p className="mini-card-value">0</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'profile' && (
-            <div className="tab-pane active">
+          {showProfileSection ? (
+            // Profile Section (shown when clicking profile photo/name)
+            <div className="tab-pane active profile-pane-active">
               <div className="profile-section">
                 {!isEditingProfile ? (
                   <>
+                    {/* Profile Header */}
+                    <div className="profile-header-section">
+                      <div className="profile-header-avatar-wrapper">
+                        <div className="profile-header-avatar">
+                          {profileData?.profilePhoto ? (
+                            <img 
+                              src={profileData.profilePhoto} 
+                              alt="Profile" 
+                              className="avatar-img-large"
+                            />
+                          ) : (
+                            displayName?.charAt(0).toUpperCase() || 'U'
+                          )}
+                        </div>
+                        <div className="profile-photo-edit-section">
+                          <ProfilePhotoUpload
+                            userId={user?.uid}
+                            userType={user?.userType}
+                            currentPhotoUrl={profileData?.profilePhoto}
+                            onPhotoUpdate={(newPhoto) => {
+                              setProfileData({ ...profileData, profilePhoto: newPhoto });
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="profile-header-info">
+                        <h2>{displayName || 'User'}</h2>
+                        <p className="profile-header-subtitle">
+                          {isJobSeeker 
+                            ? (profileData?.headline || 'Job Seeker') 
+                            : (profileData?.industry || 'Employer')}
+                        </p>
+                        {isJobSeeker && profileData?.currentCity && (
+                          <p className="profile-header-location">
+                            📍 {profileData.currentCity}{profileData.state ? `, ${profileData.state}` : ''}
+                          </p>
+                        )}
+                        {!isJobSeeker && profileData?.city && (
+                          <p className="profile-header-location">
+                            📍 {profileData.city}{profileData.state ? `, ${profileData.state}` : ''}
+                          </p>
+                        )}
+                      </div>
+                      <div className="profile-header-actions">
+                        <button 
+                          className="profile-edit-btn"
+                          onClick={() => setIsEditingProfile(true)}
+                        >
+                          ✏️ Edit Profile
+                        </button>
+                        <button 
+                          className="profile-back-btn"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('Back to Dashboard clicked');
+                            setShowProfileSection(false);
+                            setIsEditingProfile(false);
+                            setActiveTab('overview');
+                          }}
+                        >
+                          ← Back to Dashboard
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Profile Summary with Completion */}
+                    <div className="profile-summary-card">
+                      <div className="profile-summary-header">
+                        <div className="profile-summary-avatar-section">
+                          <div className="profile-summary-avatar-large">
+                            {profileData?.profilePhoto ? (
+                              <img 
+                                src={profileData.profilePhoto} 
+                                alt="Profile" 
+                                className="avatar-img-summary-large"
+                              />
+                            ) : (
+                              displayName?.charAt(0).toUpperCase() || 'U'
+                            )}
+                          </div>
+                          <div className="profile-summary-completion">
+                            <div className="completion-circle-large">
+                              <svg viewBox="0 0 36 36" className="circular-chart">
+                                <path
+                                  className="circle-bg"
+                                  d="M18 2.0845
+                                    a 15.9155 15.9155 0 0 1 0 31.831
+                                    a 15.9155 15.9155 0 0 1 0 -31.831"
+                                />
+                                <path
+                                  className="circle"
+                                  strokeDasharray={`${profileCompletion}, 100`}
+                                  d="M18 2.0845
+                                    a 15.9155 15.9155 0 0 1 0 31.831
+                                    a 15.9155 15.9155 0 0 1 0 -31.831"
+                                />
+                                <text x="18" y="20.35" className="percentage">{profileCompletion}%</text>
+                              </svg>
+                            </div>
+                            <p className="completion-label-large">Profile Complete</p>
+                          </div>
+                        </div>
+                        <div className="profile-summary-details">
+                          <h2>{displayName || 'User'}</h2>
+                          <p className="profile-summary-subtitle">
+                            {isJobSeeker 
+                              ? (profileData?.headline || 'Job Seeker') 
+                              : (profileData?.industry || 'Employer')}
+                          </p>
+                          {isJobSeeker && profileData?.currentCity && (
+                            <p className="profile-summary-location">
+                              📍 {profileData.currentCity}{profileData.state ? `, ${profileData.state}` : ''}
+                            </p>
+                          )}
+                          {!isJobSeeker && profileData?.city && (
+                            <p className="profile-summary-location">
+                              📍 {profileData.city}{profileData.state ? `, ${profileData.state}` : ''}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Account Details Card */}
                     <div className="user-info-card">
                       <div className="card-header">
-                        <h3>Your Account Details</h3>
-                        <span className="account-type-badge">
-                          {isJobSeeker ? '💼 Job Seeker' : '🏢 Employer'}
-                        </span>
+                        <h3>Account Information</h3>
                       </div>
                       
                       <div className="info-section">
@@ -348,42 +503,12 @@ function Dashboard() {
                             {user?.email || 'Loading...'}
                           </span>
                         </div>
-                      </div>
-
-                      <div className="info-section">
-                        <div className="info-item">
-                          <span className="label">👤 {isJobSeeker ? 'Full Name:' : 'Company Name:'}</span>
-                          <span className="value">
-                            {displayName || 'Not provided'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="info-section">
                         <div className="info-item">
                           <span className="label">💼 Account Type:</span>
                           <span className="value type-badge">
                             {user?.userType === 'jobseeker' ? '💼 Job Seeker' : user?.userType === 'employer' ? '🏢 Employer' : 'Unknown'}
                           </span>
                         </div>
-                      </div>
-
-                      <div className="info-section">
-                        <div className="info-item">
-                          <span className="label">📅 Member Since:</span>
-                          <span className="value">
-                            {user?.createdAt ? 
-                              (typeof user.createdAt === 'object' && user.createdAt.toDate 
-                                ? user.createdAt.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                                : new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                              ) 
-                              : 'Today'
-                            }
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="info-section">
                         <div className="info-item">
                           <span className="label">📈 Profile Completion:</span>
                           <span className="value">
@@ -392,22 +517,10 @@ function Dashboard() {
                             </span>
                           </span>
                         </div>
-                      </div>
-
-                      <div className="info-section">
                         <div className="info-item">
                           <span className="label">⚙️ Account Status:</span>
                           <span className="value status-badge active">✓ Active & Verified</span>
                         </div>
-                      </div>
-
-                      <div className="account-actions">
-                        <button 
-                          className="profile-edit-btn"
-                          onClick={() => setIsEditingProfile(true)}
-                        >
-                          ✏️ Edit Profile
-                        </button>
                       </div>
                     </div>
 
@@ -591,21 +704,41 @@ function Dashboard() {
                   <div className="profile-edit-container">
                     <div className="edit-header">
                       <h2>✏️ Edit Your Profile</h2>
-                      <button 
-                        className="btn-cancel"
-                        onClick={() => setIsEditingProfile(false)}
-                      >
-                        Cancel
-                      </button>
+                      <div className="edit-header-actions">
+                        <button 
+                          className="btn-back"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('Back to View clicked');
+                            setIsEditingProfile(false);
+                          }}
+                        >
+                          ← Back to View
+                        </button>
+                        <button 
+                          className="btn-cancel"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('Cancel & Close clicked');
+                            setIsEditingProfile(false);
+                            setShowProfileSection(false);
+                            setActiveTab('overview');
+                          }}
+                        >
+                          Cancel & Close
+                        </button>
+                      </div>
                     </div>
                     {isJobSeeker ? (
                       <JobSeekerProfileForm 
-                        userId={auth.currentUser?.uid} 
+                        userId={user?.uid} 
                         onSave={handleProfileSave}
                       />
                     ) : (
                       <EmployerProfileForm 
-                        userId={auth.currentUser?.uid}
+                        userId={user?.uid}
                         onSave={handleProfileSave}
                       />
                     )}
@@ -613,9 +746,147 @@ function Dashboard() {
                 )}
               </div>
             </div>
+          ) : activeTab === 'overview' && !showProfileSection && (
+            <div className="tab-pane active">
+              <div className="welcome-section">
+                {/* Quick Actions */}
+                <div className="quick-actions">
+                  <h3>Quick Actions</h3>
+                  <div className="actions-grid">
+                    {isJobSeeker ? (
+                      <>
+                        <button className="action-btn primary">
+                          <span className="action-icon">🔍</span>
+                          <span>Browse Jobs</span>
+                        </button>
+                        <button 
+                          className="action-btn secondary"
+                          onClick={() => { 
+                            setShowProfileMenu(false);
+                            setIsEditingProfile(true);
+                            setShowProfileSection(true);
+                            setActiveTab('overview');
+                          }}
+                        >
+                          <span className="action-icon">✏️</span>
+                          <span>Edit Profile</span>
+                        </button>
+                        <button className="action-btn secondary">
+                          <span className="action-icon">⭐</span>
+                          <span>Saved Jobs</span>
+                        </button>
+                        <button className="action-btn secondary">
+                          <span className="action-icon">📊</span>
+                          <span>My Applications</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button className="action-btn primary">
+                          <span className="action-icon">✍️</span>
+                          <span>Post a Job</span>
+                        </button>
+                        <button 
+                          className="action-btn secondary"
+                          onClick={() => { 
+                            setShowProfileMenu(false);
+                            setIsEditingProfile(true);
+                            setShowProfileSection(true);
+                            setActiveTab('overview');
+                          }}
+                        >
+                          <span className="action-icon">✏️</span>
+                          <span>Edit Profile</span>
+                        </button>
+                        <button className="action-btn secondary">
+                          <span className="action-icon">📋</span>
+                          <span>My Listings</span>
+                        </button>
+                        <button className="action-btn secondary">
+                          <span className="action-icon">👥</span>
+                          <span>View Candidates</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recent Activity Summary */}
+                <div className="overview-activity">
+                  <h3>Recent Activity</h3>
+                  <div className="activity-cards-grid">
+                    <div className="activity-mini-card">
+                      <div className="mini-card-icon">📝</div>
+                      <div className="mini-card-content">
+                        <p className="mini-card-title">Profile Updates</p>
+                        <p className="mini-card-value">0</p>
+                      </div>
+                    </div>
+                    <div className="activity-mini-card">
+                      <div className="mini-card-icon">👁️</div>
+                      <div className="mini-card-content">
+                        <p className="mini-card-title">Profile Views</p>
+                        <p className="mini-card-value">0</p>
+                      </div>
+                    </div>
+                    <div className="activity-mini-card">
+                      <div className="mini-card-icon">🔔</div>
+                      <div className="mini-card-content">
+                        <p className="mini-card-title">Notifications</p>
+                        <p className="mini-card-value">0</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
-          {activeTab === 'activity' && (
+          {activeTab === 'jobs' && !showProfileSection && (
+            <div className="tab-pane active">
+              <div className="jobs-section">
+                <h2>{isJobSeeker ? 'Browse Jobs' : 'Manage Job Listings'}</h2>
+                <div className="jobs-placeholder">
+                  <div className="placeholder-card">
+                    <span className="placeholder-icon">💼</span>
+                    <p>{isJobSeeker ? 'No jobs available yet' : 'No job listings yet'}</p>
+                    <p className="placeholder-subtext">
+                      {isJobSeeker 
+                        ? 'Job listings will appear here once employers start posting'
+                        : 'Create your first job listing to get started'}
+                    </p>
+                    {!isJobSeeker && (
+                      <button className="btn-primary" style={{ marginTop: '1rem' }}>
+                        Post a Job
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'resume' && isJobSeeker && showProfileSection && (
+            <div className="tab-pane active">
+              <div className="resume-section">
+                <div className="resume-section-header">
+                  <h2>Resume Management</h2>
+                  <button 
+                    className="profile-back-btn"
+                    onClick={() => {
+                      setShowProfileSection(false);
+                      setActiveTab('overview');
+                    }}
+                  >
+                    ← Back to Dashboard
+                  </button>
+                </div>
+                <ResumeUpload userId={user?.uid} />
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'activity' && !showProfileSection && (
             <div className="tab-pane active">
               <div className="activity-section">
                 <h2>Recent Activity</h2>
@@ -631,6 +902,16 @@ function Dashboard() {
           )}
         </div>
       </div>
+      {showProfileMenu && (
+        <div 
+          className="profile-menu-overlay"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowProfileMenu(false);
+          }}
+        ></div>
+      )}
     </div>
   );
 }

@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { getCurrentUser } from './services/authService';
+import { getCurrentUser } from './services/mongoAuthService';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
+import ProfessionalDashboard from './pages/ProfessionalDashboard';
 import './App.css';
 
 function App() {
@@ -42,7 +45,10 @@ function App() {
         <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Home />} />
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
-        <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/dashboard" element={user ? <ProfessionalDashboard /> : <Navigate to="/login" />} />
+        <Route path="/dashboard/old" element={user ? <Dashboard /> : <Navigate to="/login" />} />
       </Routes>
     </Router>
   );

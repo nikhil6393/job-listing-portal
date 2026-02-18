@@ -44,9 +44,31 @@ const EmployerProfileForm = ({ userId, onSave }) => {
     const loadProfile = async () => {
       try {
         const profile = await getEmployerProfile(userId);
-        setFormData(profile);
-        const status = getProfileCompletionStatus(profile, 'employer');
-        setCompletion(status.percentage);
+        if (profile) {
+          // Ensure all fields have default values to prevent controlled/uncontrolled warning
+          setFormData({
+            companyName: profile.companyName || '',
+            companyType: profile.companyType || '',
+            industry: profile.industry || '',
+            companySize: profile.companySize || '',
+            foundedYear: profile.foundedYear || '',
+            website: profile.website || '',
+            companyDescription: profile.companyDescription || '',
+            contactPersonName: profile.contactPersonName || '',
+            email: profile.email || '',
+            phoneNumber: profile.phoneNumber || '',
+            alternatePhone: profile.alternatePhone || '',
+            officeAddress: profile.officeAddress || '',
+            city: profile.city || '',
+            state: profile.state || '',
+            zipCode: profile.zipCode || '',
+            country: profile.country || '',
+            registrationNumber: profile.registrationNumber || '',
+            taxId: profile.taxId || '',
+          });
+          const status = getProfileCompletionStatus(profile, 'employer');
+          setCompletion(status.percentage);
+        }
       } catch (error) {
         console.log('New profile - starting fresh');
       }
@@ -258,6 +280,7 @@ const EmployerProfileForm = ({ userId, onSave }) => {
                 type="email"
                 id="email"
                 name="email"
+                autoComplete="email"
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="company@example.com"
@@ -273,6 +296,7 @@ const EmployerProfileForm = ({ userId, onSave }) => {
                 type="tel"
                 id="phoneNumber"
                 name="phoneNumber"
+                autoComplete="tel"
                 value={formData.phoneNumber}
                 onChange={handleInputChange}
                 placeholder="+1-555-0100"
@@ -286,6 +310,7 @@ const EmployerProfileForm = ({ userId, onSave }) => {
                 type="tel"
                 id="alternatePhone"
                 name="alternatePhone"
+                autoComplete="tel"
                 value={formData.alternatePhone}
                 onChange={handleInputChange}
                 placeholder="+1-555-0101"
@@ -304,6 +329,7 @@ const EmployerProfileForm = ({ userId, onSave }) => {
               type="text"
               id="officeAddress"
               name="officeAddress"
+              autoComplete="street-address"
               value={formData.officeAddress}
               onChange={handleInputChange}
               placeholder="123 Business Street"
@@ -317,6 +343,7 @@ const EmployerProfileForm = ({ userId, onSave }) => {
                 type="text"
                 id="city"
                 name="city"
+                autoComplete="address-level2"
                 value={formData.city}
                 onChange={handleInputChange}
                 placeholder="San Francisco"
@@ -329,6 +356,7 @@ const EmployerProfileForm = ({ userId, onSave }) => {
                 type="text"
                 id="state"
                 name="state"
+                autoComplete="address-level1"
                 value={formData.state}
                 onChange={handleInputChange}
                 placeholder="California"
@@ -343,6 +371,7 @@ const EmployerProfileForm = ({ userId, onSave }) => {
                 type="text"
                 id="zipCode"
                 name="zipCode"
+                autoComplete="postal-code"
                 value={formData.zipCode}
                 onChange={handleInputChange}
                 placeholder="94102"
